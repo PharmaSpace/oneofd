@@ -10,6 +10,7 @@ import (
 )
 
 type oneofd struct {
+	r        *resty.Client
 	Login    string
 	Password string
 }
@@ -74,7 +75,7 @@ type ReceiptOfd struct {
 		TransactionDate      string            `json:"transactionDate"`
 		FiscalDriveNumber    string            `json:"fiscalDriveNumber"`
 		EcashTotalSum        float32           `json:"ecashTotalSum"`
-		FP                   int               `json:"fiscalId"`
+		FP                   string            `json:"fiscalId"`
 		FiscalDocumentNumber int               `json:"fiscalDocumentNumber"`
 		TaxationType         int               `json:"taxationType"`
 		NdsNo                float32           `json:"ndsNo"`
@@ -121,18 +122,21 @@ var globalAuth Auth
 
 func OneOfd(login, password string) *oneofd {
 	return &oneofd{
+		r:        resty.New(),
 		Login:    login,
 		Password: password,
 	}
 }
 
 func (ofd *oneofd) auth() {
-	resp, err := resty.New().R().
+	_, err := ofd.r.R().
 		SetBody(map[string]interface{}{"login": ofd.Login, "password": ofd.Password}).
 		SetResult(&globalAuth).
 		Post("https://org.1-ofd.ru/api/user/login")
 
-	fmt.Println(resp)
+	/*for _, cookie := range resp.Cookies() {
+		ofd.r.SetCookie(cookie)
+	}*/
 	if err != nil {
 		log.Printf("1 ofd failed auth: %v", err)
 	}
@@ -156,7 +160,7 @@ func (ofd *oneofd) getKKT(date time.Time) (kkt []KKT, err error) {
 	}
 
 	k := []Kkts{}
-	resp, err := resty.New().R().
+	resp, err := ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&k).
 		Get("https://org.1-ofd.ru/api/retail-places/kkms")
@@ -189,7 +193,7 @@ func endDay(t time.Time) int64 {
 
 func (ofd *oneofd) getDocuments(kkt string, date time.Time) (documents []Receipt, err error) {
 	docs := []Receipts{}
-	resp, err := resty.New().R().
+	resp, err := ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&docs).
 		Get("https://org.1-ofd.ru/api/kkms/" + kkt + "/transactions?fromDate=" + strconv.FormatInt(startDay(date), 10) + "&toDate=" + strconv.FormatInt(endDay(date), 10))
@@ -203,7 +207,7 @@ func (ofd *oneofd) getDocuments(kkt string, date time.Time) (documents []Receipt
 
 func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 	d := ReceiptOfd{}
-	_, err := resty.New().R().
+	_, err := ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&d).
 		Get("https://org.1-ofd.ru/api/ticket/" + id)
@@ -218,7 +222,7 @@ func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 	}
 	doc.Date = date.Format(time.RFC3339)
 	doc.FD = strconv.Itoa(d.Ticket.FiscalDocumentNumber)
-	doc.FP = strconv.Itoa(d.Ticket.FP)
+	doc.FP = d.Ticket.FP
 	if d.Ticket.Nds20 > 0 {
 		doc.VatPrice = int(d.Ticket.Nds20) * 100
 	} else if d.Ticket.Nds0 > 0 {
