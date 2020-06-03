@@ -112,6 +112,7 @@ type Link struct {
 type ProductDocument struct {
 	Quantity    json.Number `json:"quantity"`
 	Price       int         `json:"price"`
+	NdsSum      int         `json:"ndsSum"`
 	Name        string      `json:"name"`
 	Sum         int         `json:"sum"`
 	ProductType int         `json:"productType"`
@@ -160,11 +161,10 @@ func (ofd *oneofd) getKKT(date time.Time) (kkt []KKT, err error) {
 	}
 
 	k := []Kkts{}
-	resp, err := ofd.r.R().
+	_, err = ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&k).
 		Get("https://org.1-ofd.ru/api/retail-places/kkms")
-	fmt.Println(resp)
 	if err != nil {
 		log.Printf("[OFDYA] GetKKT: %s", err.Error())
 	}
@@ -193,11 +193,10 @@ func endDay(t time.Time) int64 {
 
 func (ofd *oneofd) getDocuments(kkt string, date time.Time) (documents []Receipt, err error) {
 	docs := []Receipts{}
-	resp, err := ofd.r.R().
+	_, err = ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&docs).
 		Get("https://org.1-ofd.ru/api/kkms/" + kkt + "/transactions?fromDate=" + strconv.FormatInt(startDay(date), 10) + "&toDate=" + strconv.FormatInt(endDay(date), 10))
-	fmt.Println(resp)
 	for _, v := range docs {
 		doc := ofd.getReceipt(v.Id)
 		documents = append(documents, doc)
@@ -207,11 +206,11 @@ func (ofd *oneofd) getDocuments(kkt string, date time.Time) (documents []Receipt
 
 func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 	d := ReceiptOfd{}
-	_, err := ofd.r.R().
+	resp, err := ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&d).
 		Get("https://org.1-ofd.ru/api/ticket/" + id)
-
+	fmt.Print(resp)
 	if err != nil {
 		log.Printf("[1OFD] getReceipt: %s", err.Error())
 	}
@@ -232,14 +231,14 @@ func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 	}
 	doc.Price = int(d.Ticket.TotalSum) * 100
 	for _, v := range d.Ticket.Items {
-		q, _ := strconv.Atoi(v.Quantity.String())
+		q, _ := v.Quantity.Float64()
 		doc.Products = append(doc.Products, Product{
 			Name:       v.Name,
-			Quantity:   q,
+			Quantity:   int(q),
 			Price:      v.Price,
 			Vat:        0,
-			VatPrice:   0,
-			TotalPrice: 0,
+			VatPrice:   v.NdsSum,
+			TotalPrice: doc.Price,
 			FP:         doc.FP,
 			FD:         doc.FD,
 			Time:       date.Format(time.RFC3339),
