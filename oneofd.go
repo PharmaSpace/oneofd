@@ -215,7 +215,7 @@ func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 
 	date, err := time.Parse("2006-01-02T15:04:05.000", d.Ticket.TransactionDate)
 	if err != nil {
-		log.Printf("[1OFD] getReceipt->parseDate: %s", err.Error())
+		log.Printf("[1OFD] getReceipt->parseDate:(%s) %s", d.Ticket.TransactionDate, err.Error())
 	}
 	doc.Date = date.Format(time.RFC3339)
 	doc.FD = strconv.Itoa(d.Ticket.FiscalDocumentNumber)
