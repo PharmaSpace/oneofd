@@ -2,7 +2,6 @@ package oneofd
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/go-resty/resty/v2"
 	"log"
 	"strconv"
@@ -206,11 +205,10 @@ func (ofd *oneofd) getDocuments(kkt string, date time.Time) (documents []Receipt
 
 func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 	d := ReceiptOfd{}
-	resp, err := ofd.r.R().
+	_, err := ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
 		SetResult(&d).
 		Get("https://org.1-ofd.ru/api/ticket/" + id)
-	fmt.Print(resp)
 	if err != nil {
 		log.Printf("[1OFD] getReceipt: %s", err.Error())
 	}
