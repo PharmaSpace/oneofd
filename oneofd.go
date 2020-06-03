@@ -21,6 +21,7 @@ type KKT struct {
 
 type Receipt struct {
 	ID       int
+	KktRegId string
 	FP       string
 	FD       string
 	Date     string
@@ -218,6 +219,7 @@ func (ofd *oneofd) getReceipt(id string) (doc Receipt) {
 		log.Printf("[1OFD] getReceipt->parseDate:(%s) %s", d.Ticket.TransactionDate, err.Error())
 	}
 	doc.Date = date.Format(time.RFC3339)
+	doc.KktRegId = d.Ticket.KktRegId
 	doc.FD = strconv.Itoa(d.Ticket.FiscalDocumentNumber)
 	doc.FP = d.Ticket.FP
 	if d.Ticket.Nds20 > 0 {
