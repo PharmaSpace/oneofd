@@ -144,6 +144,7 @@ func (ofd *oneofd) auth() {
 }
 
 func (ofd *oneofd) GetReceipts(date time.Time) (receipts []Receipt, err error) {
+	ofd.auth()
 	kkts, err := ofd.getKKT(date)
 	for _, kkt := range kkts {
 		r, err := ofd.getDocuments(kkt.Kktregid, date)
@@ -156,10 +157,6 @@ func (ofd *oneofd) GetReceipts(date time.Time) (receipts []Receipt, err error) {
 }
 
 func (ofd *oneofd) getKKT(date time.Time) (kkt []KKT, err error) {
-	if globalAuth.AuthToken == "" {
-		ofd.auth()
-	}
-
 	k := []Kkts{}
 	_, err = ofd.r.R().
 		SetHeader("X-XSRF-TOKEN", globalAuth.AuthToken).
